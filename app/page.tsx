@@ -220,9 +220,12 @@ export default function Home() {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_URL}?batchNumber=${encodeURIComponent(batchNumber)}`
-      );
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ batchNumber }),
+      });
       const payload = (await response.json()) as PickListResponse;
 
       if (!response.ok || !payload.success) {
