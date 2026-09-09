@@ -338,7 +338,8 @@ button {
 
 .size-badge,
 .size-badge-empty {
-  width: 40px;
+  min-width: 48px;
+  width: 48px;
   height: 36px;
   border-radius: 10px;
   display: grid;

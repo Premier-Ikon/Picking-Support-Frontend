@@ -27,19 +27,19 @@ function saveChecked(batchNumber: string, ids: string[]) {
   window.localStorage.setItem(storageKey(batchNumber), JSON.stringify(ids));
 }
 
-const SIZE_MATCHES = [
-  { rank: 10, short: "XXS", pattern: /\b(xxs|2xs|extra\s*extra\s*small)\b/i },
-  { rank: 20, short: "XS", pattern: /\b(xs|x-?\s*small|extra\s*small)\b/i },
-  { rank: 30, short: "S", pattern: /\b(small)\b/i },
-  { rank: 40, short: "M", pattern: /\b(medium|med)\b/i },
-  { rank: 50, short: "L", pattern: /\b(large)\b/i },
-  { rank: 80, short: "3XL", pattern: /\b(xxx-?l|3x-?l|3x|triple\s*extra\s*large)\b/i },
-  { rank: 70, short: "2XL", pattern: /\b(xx-?l|2x-?l|2x|double\s*extra\s*large)\b/i },
-  { rank: 60, short: "XL", pattern: /\b(x-?\s*large|xlarge|extra\s*large|xl)\b/i },
-  { rank: 90, short: "4XL", pattern: /\b(4x-?l|4x)\b/i },
-  { rank: 100, short: "5XL", pattern: /\b(5x-?l|5x)\b/i },
-  { rank: 110, short: "6XL", pattern: /\b(6x-?l|6x)\b/i },
-  { rank: 200, short: "OS", pattern: /\b(one\s*size|osfa|os)\b/i },
+const SIZE_KEYS = [
+  { rank: 10, short: "XXS", keys: ["xxs", "2xs", "extraextrasmall"] },
+  { rank: 20, short: "XS", keys: ["xs", "xsmall", "extrasmall"] },
+  { rank: 30, short: "S", keys: ["s", "small"] },
+  { rank: 40, short: "M", keys: ["m", "med", "medium"] },
+  { rank: 50, short: "L", keys: ["l", "lg", "large"] },
+  { rank: 60, short: "XL", keys: ["xl", "xlarge", "extralarge"] },
+  { rank: 70, short: "2XL", keys: ["2xl", "2x", "2xlarge", "xxl", "xxlarge"] },
+  { rank: 80, short: "3XL", keys: ["3xl", "3x", "3xlarge", "xxxl", "xxxlarge"] },
+  { rank: 90, short: "4XL", keys: ["4xl", "4x", "4xlarge", "xxxxl"] },
+  { rank: 100, short: "5XL", keys: ["5xl", "5x", "5xlarge"] },
+  { rank: 110, short: "6XL", keys: ["6xl", "6x", "6xlarge"] },
+  { rank: 200, short: "OS", keys: ["os", "osfa", "onesize"] },
 ];
 
 function sizeGroup(size: string | null) {
@@ -50,10 +50,18 @@ function sizeGroup(size: string | null) {
   return 3;
 }
 
+function compactSize(size: string) {
+  return size
+    .toLowerCase()
+    .replace(/\b(adult|youth|kids?|child(?:ren)?|toddler|infant|baby|newborn)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function sizeInfo(size: string | null) {
   const raw = String(size || "").trim();
   if (!raw) return { rank: 999, short: null, group: 9 };
-  const match = SIZE_MATCHES.find((entry) => entry.pattern.test(raw));
+  const compact = compactSize(raw);
+  const match = SIZE_KEYS.find((entry) => entry.keys.includes(compact));
   return {
     rank: match ? match.rank : 500,
     short: match ? match.short : raw,
@@ -210,11 +218,19 @@ export default function Home() {
               <label htmlFor="batchNumber">Batch number</label>
               <input
                 id="batchNumber"
+                type="tel"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="go"
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 autoFocus
                 value={batchInput}
-                onChange={(event) => setBatchInput(event.target.value)}
+                onChange={(event) =>
+                  setBatchInput(event.target.value.replace(/\D/g, ""))
+                }
                 placeholder="######"
               />
               <button className="primary-btn" type="submit" disabled={loading}>
@@ -263,7 +279,7 @@ export default function Home() {
               <div className="item-list">
                 {category.items.map((item) => {
                   const checked = checkedIds.includes(item.id);
-                  const sizeShort = item.sizeShort || sizeInfo(item.size).short;
+                  const sizeShort = sizeInfo(item.size).short;
                   return (
                     <button
                       key={item.id}
