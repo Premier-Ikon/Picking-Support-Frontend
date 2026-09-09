@@ -139,6 +139,13 @@ export default function Home() {
     saveChecked(data.batch.batchNumber, []);
   }
 
+  function startNewBatch() {
+    setData(null);
+    setBatchInput("");
+    setError("");
+    setCheckedIds([]);
+  }
+
   if (!data) {
     return (
       <main className="app search-mode">
@@ -158,7 +165,7 @@ export default function Home() {
                 autoFocus
                 value={batchInput}
                 onChange={(event) => setBatchInput(event.target.value)}
-                placeholder="139221"
+                placeholder="######"
               />
               <button className="primary-btn" type="submit" disabled={loading}>
                 {loading ? "Loading batch..." : "Load pick list"}
@@ -176,7 +183,7 @@ export default function Home() {
       <div className="app-shell">
         <header className="list-header">
           <div className="list-toolbar">
-            <button type="button" onClick={() => setData(null)}>
+            <button type="button" onClick={startNewBatch}>
               New batch
             </button>
             <button type="button" onClick={resetChecks}>
