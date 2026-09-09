@@ -274,18 +274,18 @@ export default function Home() {
                       <ItemImage item={item} />
                       <div className="item-copy">
                         <h3>{item.title}</h3>
-                        {item.size ? (
-                          <p className="item-size">{item.size}</p>
-                        ) : (
-                          <p>{item.productType || "Item"}</p>
-                        )}
+                        <p>{item.size || item.productType || "Item"}</p>
                       </div>
-                      {sizeShort ? (
-                        <div className="size-badge">{sizeShort}</div>
-                      ) : null}
-                      <div className="qty-pill">×{item.quantity}</div>
-                      <div className={`checkbox${checked ? " checked" : ""}`}>
-                        {checked ? <CheckIcon /> : null}
+                      <div className="item-actions">
+                        {sizeShort ? (
+                          <div className="size-badge">{sizeShort}</div>
+                        ) : (
+                          <div className="size-badge size-badge-empty" aria-hidden="true" />
+                        )}
+                        <div className="qty-pill">×{item.quantity}</div>
+                        <div className={`checkbox${checked ? " checked" : ""}`}>
+                          {checked ? <CheckIcon /> : null}
+                        </div>
                       </div>
                     </button>
                   );

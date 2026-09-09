@@ -269,7 +269,7 @@ button {
 .item-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto auto 44px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px;
@@ -319,14 +319,7 @@ button {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 500;
-}
-
-.item-copy .item-size {
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.2px;
+  font-weight: 400;
 }
 
 .item-row.checked .item-copy h3,
@@ -335,18 +328,33 @@ button {
   text-decoration: line-through;
 }
 
-.size-badge {
-  min-width: 44px;
+.item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.size-badge,
+.size-badge-empty {
+  width: 40px;
   height: 36px;
-  padding: 0 8px;
   border-radius: 10px;
   display: grid;
   place-items: center;
+}
+
+.size-badge {
   background: #1d1d1f;
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+
+.size-badge-empty {
+  visibility: hidden;
 }
 
 .item-row.checked .size-badge {
@@ -355,7 +363,7 @@ button {
 }
 
 .qty-pill {
-  min-width: 42px;
+  min-width: 40px;
   height: 34px;
   padding: 0 10px;
   border-radius: 999px;
@@ -379,7 +387,7 @@ button {
   border: 2px solid #c7c7cc;
   display: grid;
   place-items: center;
-  justify-self: end;
+  flex-shrink: 0;
 }
 
 .checkbox.checked {
@@ -411,7 +419,7 @@ button {
   }
 
   .item-row {
-    grid-template-columns: 88px minmax(0, 1fr) auto auto 48px;
+    grid-template-columns: 88px minmax(0, 1fr) auto;
     gap: 16px;
   }
 
