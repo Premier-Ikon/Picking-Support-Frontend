@@ -113,6 +113,43 @@ function BoxIcon() {
   );
 }
 
+function ConfirmModal({
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="modal-overlay" role="presentation" onClick={onCancel}>
+      <div
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="confirm-title">{title}</h2>
+        <p>{message}</p>
+        <div className="modal-actions">
+          <button type="button" className="ghost-btn" onClick={onCancel}>
+            Go back
+          </button>
+          <button type="button" className="primary-btn" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ItemImage({ item }: { item: PickItem }) {
   const [failed, setFailed] = useState(false);
 
@@ -137,6 +174,8 @@ export default function Home() {
   const [data, setData] = useState<PickListResponse | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [useAppKeypad, setUseAppKeypad] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [quantityItem, setQuantityItem] = useState<PickItem | null>(null);
 
   useEffect(() => {
     setUseAppKeypad(shouldUseAppKeypad());
@@ -200,7 +239,7 @@ export default function Home() {
     }
   }
 
-  function toggleItem(item: PickItem) {
+  function applyCheck(item: PickItem) {
     if (!data) return;
     const next = checkedIds.includes(item.id)
       ? checkedIds.filter((id) => id !== item.id)
@@ -209,17 +248,36 @@ export default function Home() {
     saveChecked(data.batch.batchNumber, next);
   }
 
+  function toggleItem(item: PickItem) {
+    const alreadyChecked = checkedIds.includes(item.id);
+    if (!alreadyChecked && item.quantity > 1) {
+      setQuantityItem(item);
+      return;
+    }
+    applyCheck(item);
+  }
+
   function resetChecks() {
     if (!data) return;
     setCheckedIds([]);
     saveChecked(data.batch.batchNumber, []);
   }
 
-  function startNewBatch() {
+  function leaveBatch() {
+    setLeaveConfirmOpen(false);
+    setQuantityItem(null);
     setData(null);
     setBatchInput("");
     setError("");
     setCheckedIds([]);
+  }
+
+  function requestNewBatch() {
+    if (pickedCount < totalCount) {
+      setLeaveConfirmOpen(true);
+      return;
+    }
+    leaveBatch();
   }
 
   function appendDigit(digit: string) {
@@ -318,7 +376,7 @@ export default function Home() {
       <div className="app-shell">
         <header className="list-header">
           <div className="list-toolbar">
-            <button type="button" onClick={startNewBatch}>
+            <button type="button" onClick={requestNewBatch}>
               New batch
             </button>
             <button type="button" onClick={resetChecks}>
@@ -380,6 +438,29 @@ export default function Home() {
           ))
         )}
       </div>
+
+      {leaveConfirmOpen ? (
+        <ConfirmModal
+          title="Missing items"
+          message={`${totalCount - pickedCount} of ${totalCount} items still need to be picked. Start a new batch anyway?`}
+          confirmLabel="Confirm"
+          onCancel={() => setLeaveConfirmOpen(false)}
+          onConfirm={leaveBatch}
+        />
+      ) : null}
+
+      {quantityItem ? (
+        <ConfirmModal
+          title="Confirm quantity"
+          message={`Did you pick all ${quantityItem.quantity} of ${quantityItem.title}${quantityItem.size ? ` (${quantityItem.size})` : ""}?`}
+          confirmLabel="Yes, all picked"
+          onCancel={() => setQuantityItem(null)}
+          onConfirm={() => {
+            applyCheck(quantityItem);
+            setQuantityItem(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
