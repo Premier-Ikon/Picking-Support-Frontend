@@ -4,6 +4,7 @@ export type PickItem = {
   title: string;
   productType: string | null;
   size: string | null;
+  sizeShort?: string | null;
   quantity: number;
   imageUrl: string | null;
   sku: string | null;
