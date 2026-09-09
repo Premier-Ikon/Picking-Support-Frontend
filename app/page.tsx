@@ -69,6 +69,19 @@ function sizeInfo(size: string | null) {
   };
 }
 
+function isIpadDevice() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/iPad/.test(ua)) return true;
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+}
+
+function shouldUseAppKeypad() {
+  if (typeof window === "undefined") return false;
+  if (isIpadDevice()) return true;
+  return window.matchMedia("(pointer: coarse) and (min-width: 768px)").matches;
+}
+
 function sortBySize(items: PickItem[]) {
   return [...items].sort((a, b) => {
     const sizeA = sizeInfo(a.size);
@@ -123,6 +136,11 @@ export default function Home() {
   const [error, setError] = useState("");
   const [data, setData] = useState<PickListResponse | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [useAppKeypad, setUseAppKeypad] = useState(false);
+
+  useEffect(() => {
+    setUseAppKeypad(shouldUseAppKeypad());
+  }, []);
 
   useEffect(() => {
     if (!data?.batch.batchNumber) return;
@@ -204,6 +222,14 @@ export default function Home() {
     setCheckedIds([]);
   }
 
+  function appendDigit(digit: string) {
+    setBatchInput((current) => `${current}${digit}`.slice(0, 12));
+  }
+
+  function deleteDigit() {
+    setBatchInput((current) => current.slice(0, -1));
+  }
+
   if (!data) {
     return (
       <main className="app search-mode">
@@ -214,25 +240,68 @@ export default function Home() {
             </div>
             <h1>Picking Support</h1>
             <p>Enter a ShipStation batch number to load the pick list.</p>
-            <form className="search-form" onSubmit={loadBatch}>
+            <form
+              className={`search-form${useAppKeypad ? " search-form-pad" : ""}`}
+              onSubmit={loadBatch}
+            >
               <label htmlFor="batchNumber">Batch number</label>
               <input
                 id="batchNumber"
-                type="tel"
-                inputMode="numeric"
+                type={useAppKeypad ? "text" : "tel"}
+                inputMode={useAppKeypad ? "none" : "numeric"}
                 pattern="[0-9]*"
                 enterKeyHint="go"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                autoFocus
+                autoFocus={!useAppKeypad}
+                readOnly={useAppKeypad}
                 value={batchInput}
                 onChange={(event) =>
                   setBatchInput(event.target.value.replace(/\D/g, ""))
                 }
+                onFocus={(event) => {
+                  if (useAppKeypad) event.currentTarget.blur();
+                }}
                 placeholder="######"
               />
+              {useAppKeypad ? (
+                <div className="number-pad" aria-label="Number pad">
+                  {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+                    <button
+                      key={digit}
+                      type="button"
+                      className="pad-key"
+                      onClick={() => appendDigit(digit)}
+                    >
+                      {digit}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="pad-key pad-key-action"
+                    onClick={deleteDigit}
+                    aria-label="Delete"
+                  >
+                    ⌫
+                  </button>
+                  <button
+                    type="button"
+                    className="pad-key"
+                    onClick={() => appendDigit("0")}
+                  >
+                    0
+                  </button>
+                  <button
+                    type="submit"
+                    className="pad-key pad-key-go"
+                    disabled={loading}
+                  >
+                    Go
+                  </button>
+                </div>
+              ) : null}
               <button className="primary-btn" type="submit" disabled={loading}>
                 {loading ? "Loading batch..." : "Load pick list"}
               </button>

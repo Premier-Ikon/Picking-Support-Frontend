@@ -152,6 +152,53 @@ button {
   margin-top: 8px;
 }
 
+.search-form-pad {
+  max-width: 320px;
+}
+
+.search-form-pad input {
+  caret-color: transparent;
+}
+
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.pad-key {
+  height: 58px;
+  border: none;
+  border-radius: 14px;
+  background: #f2f2f7;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pad-key:active {
+  background: #e5e5ea;
+}
+
+.pad-key-action {
+  font-size: 22px;
+  color: var(--muted);
+}
+
+.pad-key-go {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+}
+
+.pad-key-go:disabled {
+  opacity: 0.6;
+}
+
 .primary-btn,
 .ghost-btn {
   height: 54px;
