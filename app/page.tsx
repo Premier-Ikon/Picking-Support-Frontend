@@ -82,13 +82,15 @@ function shouldUseAppKeypad() {
   return window.matchMedia("(pointer: coarse) and (min-width: 768px)").matches;
 }
 
-function sortBySize(items: PickItem[]) {
+function sortByItem(items: PickItem[]) {
   return [...items].sort((a, b) => {
+    const titleCompare = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    if (titleCompare !== 0) return titleCompare;
     const sizeA = sizeInfo(a.size);
     const sizeB = sizeInfo(b.size);
     if (sizeA.group !== sizeB.group) return sizeA.group - sizeB.group;
     if (sizeA.rank !== sizeB.rank) return sizeA.rank - sizeB.rank;
-    return a.title.localeCompare(b.title);
+    return (a.size || "").localeCompare(b.size || "");
   });
 }
 
@@ -192,7 +194,7 @@ export default function Home() {
         .filter((category) => category.items.length > 0)
         .map((category) => ({
           ...category,
-          items: sortBySize(category.items),
+          items: sortByItem(category.items),
         })),
     [data]
   );
