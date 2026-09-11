@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import BatchScanner from "./BatchScanner";
 import type { PickItem, PickListResponse } from "./types";
 
 const API_URL =
@@ -178,6 +179,8 @@ export default function Home() {
   const [useAppKeypad, setUseAppKeypad] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [quantityItem, setQuantityItem] = useState<PickItem | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
 
   useEffect(() => {
     setUseAppKeypad(shouldUseAppKeypad());
@@ -209,6 +212,13 @@ export default function Home() {
 
   const totalCount = data?.summary.totalItems || 0;
   const progress = totalCount ? Math.round((pickedCount / totalCount) * 100) : 0;
+
+  const handleScannedBatch = useCallback((batchNumber: string) => {
+    setScannerOpen(false);
+    setBatchInput(batchNumber);
+    setError("");
+    setScanConfirmOpen(true);
+  }, []);
 
   async function loadBatch(event?: FormEvent) {
     event?.preventDefault();
@@ -329,6 +339,16 @@ export default function Home() {
                 }}
                 placeholder="######"
               />
+              <button
+                type="button"
+                className="ghost-btn scan-btn"
+                onClick={() => {
+                  setError("");
+                  setScannerOpen(true);
+                }}
+              >
+                Scan batch sheet
+              </button>
               {useAppKeypad ? (
                 <div className="number-pad" aria-label="Number pad">
                   {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
@@ -372,6 +392,24 @@ export default function Home() {
             {error ? <div className="error-banner">{error}</div> : null}
           </section>
         </div>
+        {scannerOpen ? (
+          <BatchScanner
+            onDetected={handleScannedBatch}
+            onClose={() => setScannerOpen(false)}
+          />
+        ) : null}
+        {scanConfirmOpen ? (
+          <ConfirmModal
+            title="Confirm batch"
+            message={`We scanned batch #${batchInput}. Load this batch, or go back to change the number.`}
+            confirmLabel="Load batch"
+            onCancel={() => setScanConfirmOpen(false)}
+            onConfirm={() => {
+              setScanConfirmOpen(false);
+              void loadBatch();
+            }}
+          />
+        ) : null}
       </main>
     );
   }

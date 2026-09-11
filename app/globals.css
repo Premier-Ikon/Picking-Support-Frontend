@@ -147,9 +147,19 @@ button {
   background: white;
 }
 
-.search-form .primary-btn {
+.search-form .primary-btn,
+.search-form .scan-btn {
   width: 100%;
+}
+
+.search-form .primary-btn {
   margin-top: 8px;
+}
+
+.scan-btn {
+  height: 50px;
+  background: #eef1ff;
+  color: #3d4ed7;
 }
 
 .search-form-pad {
@@ -525,4 +535,53 @@ button {
   .item-copy h3 {
     font-size: 18px;
   }
+}
+
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(29, 29, 31, 0.55);
+}
+
+.scanner-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 22px 20px 18px;
+  border-radius: 22px;
+  background: white;
+  text-align: center;
+}
+
+.scanner-card h2 {
+  font-size: 22px;
+  letter-spacing: -0.4px;
+}
+
+.scanner-card > p {
+  margin: 8px 0 16px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.scanner-view {
+  overflow: hidden;
+  width: 100%;
+  min-height: 240px;
+  border-radius: 16px;
+  background: #111;
+}
+
+.scanner-view video {
+  width: 100%;
+  border-radius: 16px;
+}
+
+.scanner-close {
+  width: 100%;
+  margin-top: 14px;
 }
