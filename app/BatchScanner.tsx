@@ -1,5 +1,6 @@
 "use client";
 
+import type { Html5Qrcode } from "html5-qrcode";
 import { useEffect, useRef, useState } from "react";
 
 function parseScannedBatch(raw: string) {
@@ -23,8 +24,7 @@ export default function BatchScanner({
   const handled = useRef(false);
 
   useEffect(() => {
-    let scanner: { stop: () => Promise<void>; clear?: () => Promise<void> } | null =
-      null;
+    let scanner: Html5Qrcode | null = null;
     let cancelled = false;
 
     async function start() {
