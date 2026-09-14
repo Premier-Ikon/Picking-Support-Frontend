@@ -72,7 +72,7 @@ export type PickCategory = {
   items: PickItem[];
 };
 
-export type BagSize = "large" | "medium";
+export type BagSize = "large" | "ml" | "medium" | "small";
 
 export type BagItem = {
   title: string;
@@ -101,7 +101,9 @@ export type BaggingShipment = {
 export type BaggingPlan = {
   totals: {
     large: number;
+    ml: number;
     medium: number;
+    small: number;
     boxes: number;
     totalBags: number;
     shipmentCount: number;

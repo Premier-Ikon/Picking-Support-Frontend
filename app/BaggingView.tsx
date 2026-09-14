@@ -3,7 +3,10 @@
 import type { BaggingPlan, BagItem, BagSize } from "./types";
 
 function sizeLabel(size: BagSize) {
-  return size === "large" ? "Large" : "Medium";
+  if (size === "large") return "Large";
+  if (size === "ml") return "ML";
+  if (size === "small") return "Small";
+  return "Medium";
 }
 
 function itemLine(item: BagItem) {
@@ -53,6 +56,8 @@ export default function BaggingView({
 
   const { totals, shipments } = bagging;
   const boxes = totals.boxes || 0;
+  const ml = totals.ml || 0;
+  const small = totals.small || 0;
   const totalCards = [
     totals.large > 0
       ? {
@@ -63,6 +68,15 @@ export default function BaggingView({
           className: "bag-total-large",
         }
       : null,
+    ml > 0
+      ? {
+          key: "ml",
+          label: "ML",
+          count: ml,
+          unit: "bags",
+          className: "bag-total-ml",
+        }
+      : null,
     totals.medium > 0
       ? {
           key: "medium",
@@ -70,6 +84,15 @@ export default function BaggingView({
           count: totals.medium,
           unit: "bags",
           className: "bag-total-medium",
+        }
+      : null,
+    small > 0
+      ? {
+          key: "small",
+          label: "Small",
+          count: small,
+          unit: "bags",
+          className: "bag-total-small",
         }
       : null,
     boxes > 0
@@ -108,7 +131,7 @@ export default function BaggingView({
             <div
               key={card.key}
               className={`bag-total-card ${card.className}`}
-              aria-label={`${card.count} ${card.label.toLowerCase()} ${card.unit}`}
+              aria-label={`${card.count} ${card.key === "ml" ? "medium large" : card.label.toLowerCase()} ${card.unit}`}
             >
               <span>{card.label}</span>
               <strong>{card.count}</strong>

@@ -755,6 +755,14 @@ button {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+.bag-totals.cols-4 {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.bag-totals.cols-5 {
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+}
+
 .bag-total-card {
   padding: 18px 10px 14px;
   border-radius: 20px;
@@ -791,8 +799,16 @@ button {
   background: linear-gradient(135deg, #5b4bdb 0%, #3d4ed7 100%);
 }
 
+.bag-total-ml {
+  background: linear-gradient(135deg, #00acc1 0%, #00838f 100%);
+}
+
 .bag-total-medium {
   background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+}
+
+.bag-total-small {
+  background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);
 }
 
 .bag-total-box {
@@ -828,8 +844,16 @@ button {
   background: #3d4ed7;
 }
 
+.bag-size-ml {
+  background: #00838f;
+}
+
 .bag-size-medium {
   background: #1976d2;
+}
+
+.bag-size-small {
+  background: #fb8c00;
 }
 
 .bag-size-box {
