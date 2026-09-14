@@ -9,6 +9,45 @@ export type PickItem = {
   imageUrl: string | null;
   sku: string | null;
   category: string;
+  orders?: { orderNumber: string; shipmentId: string; quantity: number }[];
+};
+
+export type MissingItem = {
+  id: string;
+  batchNumber: string;
+  itemId: string;
+  name: string;
+  title: string;
+  size: string | null;
+  sizeShort?: string | null;
+  sku: string | null;
+  imageUrl: string | null;
+  category: string;
+  quantityMissing: number;
+  orders: { orderNumber: string; shipmentId: string; quantity: number }[];
+};
+
+export type FillingHoldItem = {
+  itemId?: string;
+  name?: string;
+  title: string;
+  size: string | null;
+  sizeShort?: string | null;
+  imageUrl?: string | null;
+  quantity: number;
+  category?: string;
+};
+
+export type FillingHoldOrder = {
+  orderNumber: string;
+  shipmentId: string;
+  missingItems: FillingHoldItem[];
+  bagItems: FillingHoldItem[];
+};
+
+export type FillingPlan = {
+  holdOrders: FillingHoldOrder[];
+  missingCount: number;
 };
 
 export type PickCategory = {
@@ -17,6 +56,46 @@ export type PickCategory = {
   count: number;
   items: PickItem[];
 };
+
+export type BagSize = "large" | "medium";
+
+export type BagItem = {
+  title: string;
+  size: string | null;
+  sizeShort?: string | null;
+  category: string;
+  quantity: number;
+};
+
+export type PlannedBag = {
+  size: BagSize;
+  reason: string;
+  items: BagItem[];
+};
+
+export type BaggingShipment = {
+  shipmentId: string;
+  orderNumber: string;
+  shipmentNumber: string;
+  bagCount: number;
+  boxCount: number;
+  bags: PlannedBag[];
+  boxItems: BagItem[];
+};
+
+export type BaggingPlan = {
+  totals: {
+    large: number;
+    medium: number;
+    boxes: number;
+    totalBags: number;
+    shipmentCount: number;
+  };
+  rules: string[];
+  shipments: BaggingShipment[];
+};
+
+export type AppTab = "picking" | "bagging" | "filling";
 
 export type PickListResponse = {
   success: boolean;
@@ -34,4 +113,7 @@ export type PickListResponse = {
     shipmentCount: number;
   };
   categories: PickCategory[];
+  bagging?: BaggingPlan;
+  missing?: MissingItem[];
+  filling?: FillingPlan;
 };

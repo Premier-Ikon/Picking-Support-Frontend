@@ -1,8 +1,11 @@
 "use client";
 
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import AppTabs from "./AppTabs";
+import BaggingView from "./BaggingView";
 import BatchScanner from "./BatchScanner";
-import type { PickItem, PickListResponse } from "./types";
+import FillingView from "./FillingView";
+import type { AppTab, PickItem, PickListResponse } from "./types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_PICKING_API_URL ||
@@ -95,6 +98,16 @@ function sortByItem(items: PickItem[]) {
   });
 }
 
+function MissingIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 8v5" strokeLinecap="round" />
+      <path d="M12 16.5h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -184,6 +197,9 @@ export default function Home() {
   const [quantityItem, setQuantityItem] = useState<PickItem | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
+  const [tab, setTab] = useState<AppTab>("picking");
+  const [missingItem, setMissingItem] = useState<PickItem | null>(null);
+  const [missingBusy, setMissingBusy] = useState(false);
 
   useEffect(() => {
     setUseAppKeypad(shouldUseAppKeypad());
@@ -214,6 +230,15 @@ export default function Home() {
   }, [checkedIds, data]);
 
   const totalCount = data?.summary.totalItems || 0;
+  const missingIds = useMemo(
+    () => new Set((data?.missing || []).map((item) => item.itemId)),
+    [data?.missing]
+  );
+  const missingCount = useMemo(
+    () =>
+      (data?.missing || []).reduce((sum, item) => sum + (item.quantityMissing || 0), 0),
+    [data?.missing]
+  );
   const progress = totalCount ? Math.round((pickedCount / totalCount) * 100) : 0;
 
   const handleScannedBatch = useCallback((batchNumber: string) => {
@@ -258,7 +283,7 @@ export default function Home() {
   }
 
   function applyCheck(item: PickItem) {
-    if (!data) return;
+    if (!data || missingIds.has(item.id)) return;
     const next = checkedIds.includes(item.id)
       ? checkedIds.filter((id) => id !== item.id)
       : [...checkedIds, item.id];
@@ -267,6 +292,7 @@ export default function Home() {
   }
 
   function toggleItem(item: PickItem) {
+    if (missingIds.has(item.id)) return;
     const alreadyChecked = checkedIds.includes(item.id);
     if (!alreadyChecked && item.quantity > 1) {
       setQuantityItem(item);
@@ -291,11 +317,44 @@ export default function Home() {
   }
 
   function requestNewBatch() {
-    if (pickedCount < totalCount) {
+    if (pickedCount + missingCount < totalCount) {
       setLeaveConfirmOpen(true);
       return;
     }
     leaveBatch();
+  }
+
+  async function submitMissing(item: PickItem, action: "markMissing" | "clearMissing") {
+    if (!data) return;
+    setMissingBusy(true);
+    setError("");
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          batchNumber: data.batch.batchNumber,
+          action,
+          itemId: item.id,
+        }),
+      });
+      const payload = (await response.json()) as PickListResponse;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "Could not update missing item.");
+      }
+      setData(payload);
+      if (action === "markMissing") {
+        const next = checkedIds.filter((id) => id !== item.id);
+        setCheckedIds(next);
+        saveChecked(payload.batch.batchNumber, next);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update missing item.");
+    } finally {
+      setMissingBusy(false);
+      setMissingItem(null);
+    }
   }
 
   function appendDigit(digit: string) {
@@ -307,6 +366,25 @@ export default function Home() {
   }
 
   if (!data) {
+    const searchCopy =
+      tab === "bagging"
+        ? {
+            title: "Bagging",
+            body: "Scan a batch slip to see what size bags you need, and how many.",
+            submit: loading ? "Loading bags..." : "Load bag plan",
+          }
+        : tab === "filling"
+          ? {
+              title: "Filling",
+              body: "Scan a batch to see which orders to set aside for missing items.",
+              submit: loading ? "Loading filling..." : "Load filling",
+            }
+          : {
+              title: "Picking",
+              body: "Enter a ShipStation batch number to load the pick list.",
+              submit: loading ? "Loading batch..." : "Load pick list",
+            };
+
     return (
       <main className="app search-mode">
         <div className="app-shell">
@@ -314,87 +392,88 @@ export default function Home() {
             <div className="brand-mark">
               <BoxIcon />
             </div>
-            <h1>Picking Support</h1>
-            <p>Enter a ShipStation batch number to load the pick list.</p>
+            <h1>{searchCopy.title}</h1>
+            <p>{searchCopy.body}</p>
             <form
-              className={`search-form${useAppKeypad ? " search-form-pad" : ""}`}
-              onSubmit={loadBatch}
-            >
-              <label htmlFor="batchNumber">Batch number</label>
-              <input
-                id="batchNumber"
-                type={useAppKeypad ? "text" : "tel"}
-                inputMode={useAppKeypad ? "none" : "numeric"}
-                pattern="[0-9]*"
-                enterKeyHint="go"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                autoFocus={!useAppKeypad}
-                readOnly={useAppKeypad}
-                value={batchInput}
-                onChange={(event) =>
-                  setBatchInput(event.target.value.replace(/\D/g, ""))
-                }
-                onFocus={(event) => {
-                  if (useAppKeypad) event.currentTarget.blur();
-                }}
-                placeholder="######"
-              />
-              <button
-                type="button"
-                className="ghost-btn scan-btn"
-                onClick={() => {
-                  setError("");
-                  setScannerOpen(true);
-                }}
+                className={`search-form${useAppKeypad ? " search-form-pad" : ""}`}
+                onSubmit={loadBatch}
               >
-                Scan batch sheet
-              </button>
-              {useAppKeypad ? (
-                <div className="number-pad" aria-label="Number pad">
-                  {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+                <label htmlFor="batchNumber">Batch number</label>
+                <input
+                  id="batchNumber"
+                  type={useAppKeypad ? "text" : "tel"}
+                  inputMode={useAppKeypad ? "none" : "numeric"}
+                  pattern="[0-9]*"
+                  enterKeyHint="go"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  autoFocus={!useAppKeypad}
+                  readOnly={useAppKeypad}
+                  value={batchInput}
+                  onChange={(event) =>
+                    setBatchInput(event.target.value.replace(/\D/g, ""))
+                  }
+                  onFocus={(event) => {
+                    if (useAppKeypad) event.currentTarget.blur();
+                  }}
+                  placeholder="######"
+                />
+                <button
+                  type="button"
+                  className="ghost-btn scan-btn"
+                  onClick={() => {
+                    setError("");
+                    setScannerOpen(true);
+                  }}
+                >
+                  Scan batch sheet
+                </button>
+                {useAppKeypad ? (
+                  <div className="number-pad" aria-label="Number pad">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        className="pad-key"
+                        onClick={() => appendDigit(digit)}
+                      >
+                        {digit}
+                      </button>
+                    ))}
                     <button
-                      key={digit}
+                      type="button"
+                      className="pad-key pad-key-action"
+                      onClick={deleteDigit}
+                      aria-label="Delete"
+                    >
+                      ⌫
+                    </button>
+                    <button
                       type="button"
                       className="pad-key"
-                      onClick={() => appendDigit(digit)}
+                      onClick={() => appendDigit("0")}
                     >
-                      {digit}
+                      0
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="pad-key pad-key-action"
-                    onClick={deleteDigit}
-                    aria-label="Delete"
-                  >
-                    ⌫
-                  </button>
-                  <button
-                    type="button"
-                    className="pad-key"
-                    onClick={() => appendDigit("0")}
-                  >
-                    0
-                  </button>
-                  <button
-                    type="submit"
-                    className="pad-key pad-key-go"
-                    disabled={loading}
-                  >
-                    Go
-                  </button>
-                </div>
-              ) : null}
-              <button className="primary-btn" type="submit" disabled={loading}>
-                {loading ? "Loading batch..." : "Load pick list"}
-              </button>
-            </form>
+                    <button
+                      type="submit"
+                      className="pad-key pad-key-go"
+                      disabled={loading}
+                    >
+                      Go
+                    </button>
+                  </div>
+                ) : null}
+                <button className="primary-btn" type="submit" disabled={loading}>
+                  {searchCopy.submit}
+                </button>
+              </form>
             {error ? <div className="error-banner">{error}</div> : null}
           </section>
         </div>
+        <AppTabs tab={tab} onChange={setTab} />
         {scannerOpen ? (
           <BatchScanner
             onDetected={handleScannedBatch}
@@ -405,7 +484,7 @@ export default function Home() {
           <ConfirmModal
             title="Confirm batch"
             message="We read this number from the slip. Fix it if needed, then load."
-            confirmLabel="Load batch"
+            confirmLabel={tab === "bagging" ? "Load bags" : "Load batch"}
             onCancel={() => setScanConfirmOpen(false)}
             onConfirm={() => {
               setScanConfirmOpen(false);
@@ -431,79 +510,134 @@ export default function Home() {
 
   return (
     <main className="app">
-      <div className="app-shell">
-        <header className="list-header">
-          <div className="list-toolbar">
-            <button type="button" onClick={requestNewBatch}>
-              New batch
-            </button>
-            <button type="button" onClick={resetChecks}>
-              Reset
-            </button>
-          </div>
-          <h1>Batch #{data.batch.batchNumber}</h1>
-          <p className="progress-copy">
-            {pickedCount} of {totalCount} items picked
-          </p>
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
-          </div>
-        </header>
+      {tab === "bagging" ? (
+        <BaggingView
+          batchNumber={data.batch.batchNumber}
+          bagging={data.bagging}
+          onNewBatch={requestNewBatch}
+        />
+      ) : tab === "filling" ? (
+        <FillingView
+          batchNumber={data.batch.batchNumber}
+          filling={data.filling}
+          onNewBatch={requestNewBatch}
+        />
+      ) : (
+        <div className="app-shell">
+          <header className="list-header">
+            <div className="list-toolbar">
+              <button type="button" onClick={requestNewBatch}>
+                New batch
+              </button>
+              <button type="button" onClick={resetChecks}>
+                Reset
+              </button>
+            </div>
+            <h1>Batch #{data.batch.batchNumber}</h1>
+            <p className="progress-copy">
+              {pickedCount} of {totalCount} items picked
+              {missingCount ? ` · ${missingCount} missing` : ""}
+            </p>
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            </div>
+          </header>
 
-        {visibleCategories.length === 0 ? (
-          <section className="list-card empty-state">
-            No pickable items were found in this batch.
-          </section>
-        ) : (
-          visibleCategories.map((category) => (
-            <section className="category" key={category.id}>
-              <div className="category-title">
-                <span>{category.label}</span>
-                <span>{category.count}</span>
-              </div>
-              <div className="item-list">
-                {category.items.map((item) => {
-                  const checked = checkedIds.includes(item.id);
-                  const sizeShort = sizeInfo(item.size).short;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`item-row${checked ? " checked" : ""}`}
-                      onClick={() => toggleItem(item)}
-                    >
-                      <ItemImage item={item} />
-                      <div className="item-copy">
-                        <h3>{item.title}</h3>
-                        <p>{item.size || item.productType || "Item"}</p>
-                      </div>
-                      <div className="item-actions">
-                        {sizeShort ? (
-                          <div className="size-badge">{sizeShort}</div>
-                        ) : (
-                          <div className="size-badge size-badge-empty" aria-hidden="true" />
-                        )}
-                        <div className="qty-pill">×{item.quantity}</div>
-                        <div className={`checkbox${checked ? " checked" : ""}`}>
-                          {checked ? <CheckIcon /> : null}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+          {visibleCategories.length === 0 ? (
+            <section className="list-card empty-state">
+              No pickable items were found in this batch.
             </section>
-          ))
-        )}
-      </div>
+          ) : (
+            visibleCategories.map((category) => (
+              <section className="category" key={category.id}>
+                <div className="category-title">
+                  <span>{category.label}</span>
+                  <span>{category.count}</span>
+                </div>
+                <div className="item-list">
+                  {category.items.map((item) => {
+                    const checked = checkedIds.includes(item.id);
+                    const missing = missingIds.has(item.id);
+                    const sizeShort = sizeInfo(item.size).short;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`item-row${checked ? " checked" : ""}${missing ? " is-missing" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="item-main"
+                          onClick={() => toggleItem(item)}
+                        >
+                          <ItemImage item={item} />
+                          <div className="item-copy">
+                            <h3>{item.title}</h3>
+                            <p>
+                              {missing
+                                ? "Missing"
+                                : item.size || item.productType || "Item"}
+                            </p>
+                          </div>
+                          <div className="item-actions">
+                            {sizeShort ? (
+                              <div className="size-badge">{sizeShort}</div>
+                            ) : (
+                              <div className="size-badge size-badge-empty" aria-hidden="true" />
+                            )}
+                            <div className="qty-pill">×{item.quantity}</div>
+                            <div className={`checkbox${checked ? " checked" : ""}`}>
+                              {checked ? <CheckIcon /> : null}
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className={`missing-btn${missing ? " is-on" : ""}`}
+                          aria-label={missing ? "Clear missing" : "Mark missing"}
+                          disabled={missingBusy}
+                          onClick={() => setMissingItem(item)}
+                        >
+                          <MissingIcon />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))
+          )}
+          {error ? <div className="error-banner">{error}</div> : null}
+        </div>
+      )}
+
+      <AppTabs tab={tab} onChange={setTab} />
 
       {leaveConfirmOpen ? (
         <ConfirmModal
-          title="Missing items"
-          message={`${totalCount - pickedCount} of ${totalCount} items still need to be picked. Start a new batch anyway?`}
+          title="Leave batch"
+          message={`${totalCount - pickedCount - missingCount} of ${totalCount} items still need to be picked. Start a new batch anyway?`}
           confirmLabel="Confirm"
           onCancel={() => setLeaveConfirmOpen(false)}
           onConfirm={leaveBatch}
+        />
+      ) : null}
+
+      {missingItem ? (
+        <ConfirmModal
+          title={missingIds.has(missingItem.id) ? "Clear missing" : "Mark missing"}
+          message={
+            missingIds.has(missingItem.id)
+              ? `Remove missing from ${missingItem.title}${missingItem.size ? ` (${missingItem.size})` : ""}?`
+              : `Mark ${missingItem.quantity > 1 ? `all ${missingItem.quantity} of ` : ""}${missingItem.title}${missingItem.size ? ` (${missingItem.size})` : ""} as missing? Filling will hold the order and set the bag aside.`
+          }
+          confirmLabel={missingIds.has(missingItem.id) ? "Clear" : "Mark missing"}
+          onCancel={() => setMissingItem(null)}
+          onConfirm={() =>
+            void submitMissing(
+              missingItem,
+              missingIds.has(missingItem.id) ? "clearMissing" : "markMissing"
+            )
+          }
         />
       ) : null}
 
