@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import BatchScanner from "./BatchScanner";
 import type { PickItem, PickListResponse } from "./types";
 
@@ -122,12 +122,14 @@ function ConfirmModal({
   confirmLabel,
   onConfirm,
   onCancel,
+  children,
 }: {
   title: string;
   message: string;
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="modal-overlay" role="presentation" onClick={onCancel}>
@@ -140,6 +142,7 @@ function ConfirmModal({
       >
         <h2 id="confirm-title">{title}</h2>
         <p>{message}</p>
+        {children}
         <div className="modal-actions">
           <button type="button" className="ghost-btn" onClick={onCancel}>
             Go back
@@ -401,14 +404,26 @@ export default function Home() {
         {scanConfirmOpen ? (
           <ConfirmModal
             title="Confirm batch"
-            message={`We scanned batch #${batchInput}. Load this batch, or go back to change the number.`}
+            message="We read this number from the slip. Fix it if needed, then load."
             confirmLabel="Load batch"
             onCancel={() => setScanConfirmOpen(false)}
             onConfirm={() => {
               setScanConfirmOpen(false);
               void loadBatch();
             }}
-          />
+          >
+            <input
+              className="scan-confirm-input"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              value={batchInput}
+              onChange={(event) =>
+                setBatchInput(event.target.value.replace(/\D/g, ""))
+              }
+            />
+          </ConfirmModal>
         ) : null}
       </main>
     );
