@@ -5,7 +5,7 @@ import AppTabs from "./AppTabs";
 import BaggingView from "./BaggingView";
 import BatchScanner from "./BatchScanner";
 import FillingView from "./FillingView";
-import type { AppTab, PickItem, PickListResponse } from "./types";
+import type { AppTab, InventoryCheck, PickItem, PickListResponse } from "./types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_PICKING_API_URL ||
@@ -200,6 +200,7 @@ export default function Home() {
   const [tab, setTab] = useState<AppTab>("picking");
   const [missingItem, setMissingItem] = useState<PickItem | null>(null);
   const [missingBusy, setMissingBusy] = useState(false);
+  const [missingInventory, setMissingInventory] = useState<InventoryCheck | null>(null);
 
   useEffect(() => {
     setUseAppKeypad(shouldUseAppKeypad());
@@ -310,6 +311,8 @@ export default function Home() {
   function leaveBatch() {
     setLeaveConfirmOpen(false);
     setQuantityItem(null);
+    setMissingItem(null);
+    setMissingInventory(null);
     setData(null);
     setBatchInput("");
     setError("");
@@ -354,7 +357,70 @@ export default function Home() {
     } finally {
       setMissingBusy(false);
       setMissingItem(null);
+      setMissingInventory(null);
     }
+  }
+
+  async function openMissing(item: PickItem) {
+    if (missingIds.has(item.id)) {
+      setMissingInventory(null);
+      setMissingItem(item);
+      return;
+    }
+
+    setMissingBusy(true);
+    setError("");
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          action: "checkInventory",
+          sku: item.sku,
+          title: item.title,
+          productType: item.productType,
+          size: item.size,
+          sizeShort: item.sizeShort,
+          name: item.name,
+        }),
+      });
+      const payload = (await response.json()) as {
+        success?: boolean;
+        inventory?: InventoryCheck;
+        error?: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "Could not check Shopify stock.");
+      }
+      setMissingInventory(payload.inventory || null);
+      setMissingItem(item);
+    } catch (err) {
+      setMissingInventory(null);
+      setMissingItem(item);
+      setError(err instanceof Error ? err.message : "Could not check Shopify stock.");
+    } finally {
+      setMissingBusy(false);
+    }
+  }
+
+  function missingMessage(item: PickItem) {
+    if (missingIds.has(item.id)) {
+      return `Remove missing from ${item.title}${item.size ? ` (${item.size})` : ""}?`;
+    }
+
+    const backstock = missingInventory?.backstock || [];
+    if (backstock.length) {
+      const stock = backstock
+        .map((location) => {
+          const qty = location.onHand || location.available;
+          return `${qty} at ${location.name}`;
+        })
+        .join(", ");
+      return `Shopify still shows ${stock}. There is backstock — find it. Only mark missing if you still cannot find it.`;
+    }
+
+    return `Mark ${item.quantity > 1 ? `all ${item.quantity} of ` : ""}${item.title}${item.size ? ` (${item.size})` : ""} as missing? Filling will hold the order and set the bag aside.`;
   }
 
   function appendDigit(digit: string) {
@@ -595,7 +661,7 @@ export default function Home() {
                           className={`missing-btn${missing ? " is-on" : ""}`}
                           aria-label={missing ? "Clear missing" : "Mark missing"}
                           disabled={missingBusy}
-                          onClick={() => setMissingItem(item)}
+                          onClick={() => void openMissing(item)}
                         >
                           <MissingIcon />
                         </button>
@@ -624,14 +690,25 @@ export default function Home() {
 
       {missingItem ? (
         <ConfirmModal
-          title={missingIds.has(missingItem.id) ? "Clear missing" : "Mark missing"}
-          message={
+          title={
             missingIds.has(missingItem.id)
-              ? `Remove missing from ${missingItem.title}${missingItem.size ? ` (${missingItem.size})` : ""}?`
-              : `Mark ${missingItem.quantity > 1 ? `all ${missingItem.quantity} of ` : ""}${missingItem.title}${missingItem.size ? ` (${missingItem.size})` : ""} as missing? Filling will hold the order and set the bag aside.`
+              ? "Clear missing"
+              : missingInventory?.backstock?.length
+                ? "Backstock available"
+                : "Mark missing"
           }
-          confirmLabel={missingIds.has(missingItem.id) ? "Clear" : "Mark missing"}
-          onCancel={() => setMissingItem(null)}
+          message={missingMessage(missingItem)}
+          confirmLabel={
+            missingIds.has(missingItem.id)
+              ? "Clear"
+              : missingInventory?.backstock?.length
+                ? "Still mark missing"
+                : "Mark missing"
+          }
+          onCancel={() => {
+            setMissingItem(null);
+            setMissingInventory(null);
+          }}
           onConfirm={() =>
             void submitMissing(
               missingItem,

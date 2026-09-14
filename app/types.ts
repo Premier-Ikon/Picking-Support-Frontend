@@ -45,6 +45,21 @@ export type FillingHoldOrder = {
   bagItems: FillingHoldItem[];
 };
 
+export type InventoryLocationStock = {
+  name: string;
+  available: number;
+  onHand: number;
+  backstock: boolean;
+};
+
+export type InventoryCheck = {
+  configured: boolean;
+  sku?: string | null;
+  locations: InventoryLocationStock[];
+  backstock: InventoryLocationStock[];
+  message?: string;
+};
+
 export type FillingPlan = {
   holdOrders: FillingHoldOrder[];
   missingCount: number;
