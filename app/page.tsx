@@ -194,6 +194,7 @@ export default function Home() {
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [useAppKeypad, setUseAppKeypad] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [quantityItem, setQuantityItem] = useState<PickItem | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
@@ -306,10 +307,12 @@ export default function Home() {
     if (!data) return;
     setCheckedIds([]);
     saveChecked(data.batch.batchNumber, []);
+    setResetConfirmOpen(false);
   }
 
   function leaveBatch() {
     setLeaveConfirmOpen(false);
+    setResetConfirmOpen(false);
     setQuantityItem(null);
     setMissingItem(null);
     setMissingInventory(null);
@@ -595,7 +598,7 @@ export default function Home() {
               <button type="button" onClick={requestNewBatch}>
                 New batch
               </button>
-              <button type="button" onClick={resetChecks}>
+              <button type="button" onClick={() => setResetConfirmOpen(true)}>
                 Reset
               </button>
             </div>
@@ -685,6 +688,20 @@ export default function Home() {
           confirmLabel="Confirm"
           onCancel={() => setLeaveConfirmOpen(false)}
           onConfirm={leaveBatch}
+        />
+      ) : null}
+
+      {resetConfirmOpen ? (
+        <ConfirmModal
+          title="Reset picks"
+          message={
+            pickedCount
+              ? `This will uncheck all ${pickedCount} picked ${pickedCount === 1 ? "item" : "items"} in this batch. Continue?`
+              : "This will clear any picks on this batch. Continue?"
+          }
+          confirmLabel="Reset"
+          onCancel={() => setResetConfirmOpen(false)}
+          onConfirm={resetChecks}
         />
       ) : null}
 
