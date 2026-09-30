@@ -27,13 +27,16 @@ function packSummary(totals: BaggingPlan["totals"]) {
 
 export default function BaggingView({
   batchNumber,
+  kind,
   bagging,
   onNewBatch,
 }: {
   batchNumber: string;
+  kind?: "batch" | "order";
   bagging?: BaggingPlan;
   onNewBatch: () => void;
 }) {
+  const heading = `${kind === "order" ? "Order" : "Batch"} #${batchNumber}`;
   if (!bagging) {
     return (
       <div className="app-shell">
@@ -44,7 +47,7 @@ export default function BaggingView({
             </button>
             <span />
           </div>
-          <h1>Batch #{batchNumber}</h1>
+          <h1>{heading}</h1>
         </header>
         <section className="list-card empty-state">
           Bag plan is not available for this batch yet. Redeploy the batch API
@@ -121,7 +124,7 @@ export default function BaggingView({
           </button>
           <span />
         </div>
-        <h1>Batch #{batchNumber}</h1>
+        <h1>{heading}</h1>
         <p className="progress-copy">{packSummary(totals)}</p>
       </header>
 

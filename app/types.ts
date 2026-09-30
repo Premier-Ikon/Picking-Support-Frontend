@@ -120,6 +120,7 @@ export type PickListResponse = {
   batch: {
     batchNumber: string;
     batchId: string;
+    kind?: "batch" | "order";
     status: string | null;
     shipmentCount: number;
     createdAt: string | null;

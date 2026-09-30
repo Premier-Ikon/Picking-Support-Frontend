@@ -8,14 +8,17 @@ function itemLine(item: FillingHoldItem) {
 
 export default function FillingView({
   batchNumber,
+  kind,
   filling,
   onNewBatch,
 }: {
   batchNumber: string;
+  kind?: "batch" | "order";
   filling?: FillingPlan;
   onNewBatch: () => void;
 }) {
   const holdOrders = filling?.holdOrders || [];
+  const heading = `${kind === "order" ? "Order" : "Batch"} #${batchNumber}`;
 
   return (
     <div className="app-shell">
@@ -26,7 +29,7 @@ export default function FillingView({
           </button>
           <span />
         </div>
-        <h1>Batch #{batchNumber}</h1>
+        <h1>{heading}</h1>
         <p className="progress-copy">
           {holdOrders.length
             ? `${holdOrders.length} ${holdOrders.length === 1 ? "order" : "orders"} to set aside`

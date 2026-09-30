@@ -80,6 +80,14 @@ function isIpadDevice() {
   return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
 }
 
+function headingFor(kind: string | undefined, number: string) {
+  return `${kind === "order" ? "Order" : "Batch"} #${number}`;
+}
+
+function sanitizeLookup(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 24);
+}
+
 function shouldUseAppKeypad() {
   if (typeof window === "undefined") return false;
   if (isIpadDevice()) return true;
@@ -193,6 +201,7 @@ export default function Home() {
   const [data, setData] = useState<PickListResponse | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [useAppKeypad, setUseAppKeypad] = useState(false);
+  const [letterKeys, setLetterKeys] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [quantityItem, setQuantityItem] = useState<PickItem | null>(null);
@@ -252,9 +261,9 @@ export default function Home() {
 
   async function loadBatch(event?: FormEvent) {
     event?.preventDefault();
-    const batchNumber = batchInput.trim().replace(/^#+/, "");
+    const batchNumber = sanitizeLookup(batchInput.trim().replace(/^#+/, ""));
     if (!batchNumber) {
-      setError("Enter a batch number to get started.");
+      setError("Enter a batch or order number to get started.");
       return;
     }
 
@@ -271,14 +280,14 @@ export default function Home() {
       const payload = (await response.json()) as PickListResponse;
 
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error || "Could not load that batch.");
+        throw new Error(payload.error || "Could not load that batch or order.");
       }
 
       setData(payload);
       setCheckedIds(loadChecked(payload.batch.batchNumber));
     } catch (err) {
       setData(null);
-      setError(err instanceof Error ? err.message : "Could not load that batch.");
+      setError(err instanceof Error ? err.message : "Could not load that batch or order.");
     } finally {
       setLoading(false);
     }
@@ -320,6 +329,8 @@ export default function Home() {
     setBatchInput("");
     setError("");
     setCheckedIds([]);
+    setLetterKeys(false);
+    setUseAppKeypad(shouldUseAppKeypad());
   }
 
   function requestNewBatch() {
@@ -427,11 +438,21 @@ export default function Home() {
   }
 
   function appendDigit(digit: string) {
-    setBatchInput((current) => `${current}${digit}`.slice(0, 12));
+    setBatchInput((current) => sanitizeLookup(`${current}${digit}`));
   }
 
   function deleteDigit() {
     setBatchInput((current) => current.slice(0, -1));
+  }
+
+  function useLetterKeyboard() {
+    setLetterKeys(true);
+    setUseAppKeypad(false);
+  }
+
+  function useNumberPad() {
+    setLetterKeys(false);
+    setUseAppKeypad(shouldUseAppKeypad());
   }
 
   if (!data) {
@@ -439,19 +460,19 @@ export default function Home() {
       tab === "bagging"
         ? {
             title: "Bagging",
-            body: "Scan a batch slip to see what size bags you need, and how many.",
+            body: "Scan a batch slip, or enter a batch or order number.",
             submit: loading ? "Loading bags..." : "Load bag plan",
           }
         : tab === "filling"
           ? {
               title: "Filling",
-              body: "Scan a batch to see which orders to set aside for missing items.",
+              body: "Scan a batch, or enter a batch or order number for missing items.",
               submit: loading ? "Loading filling..." : "Load filling",
             }
           : {
               title: "Picking",
-              body: "Enter a ShipStation batch number to load the pick list.",
-              submit: loading ? "Loading batch..." : "Load pick list",
+              body: "Enter a ShipStation batch number or order number to load the pick list.",
+              submit: loading ? "Loading..." : "Load pick list",
             };
 
     return (
@@ -464,31 +485,35 @@ export default function Home() {
             <h1>{searchCopy.title}</h1>
             <p>{searchCopy.body}</p>
             <form
-                className={`search-form${useAppKeypad ? " search-form-pad" : ""}`}
+                className={`search-form${useAppKeypad && !letterKeys ? " search-form-pad" : ""}`}
                 onSubmit={loadBatch}
               >
-                <label htmlFor="batchNumber">Batch number</label>
+                <label htmlFor="batchNumber">Batch or order #</label>
                 <input
                   id="batchNumber"
-                  type={useAppKeypad ? "text" : "tel"}
-                  inputMode={useAppKeypad ? "none" : "numeric"}
-                  pattern="[0-9]*"
+                  type={letterKeys ? "text" : useAppKeypad ? "text" : "tel"}
+                  inputMode={letterKeys ? "text" : useAppKeypad ? "none" : "numeric"}
                   enterKeyHint="go"
                   autoComplete="off"
                   autoCorrect="off"
-                  autoCapitalize="off"
+                  autoCapitalize="characters"
                   spellCheck={false}
-                  autoFocus={!useAppKeypad}
-                  readOnly={useAppKeypad}
+                  autoFocus={!useAppKeypad || letterKeys}
+                  readOnly={useAppKeypad && !letterKeys}
                   value={batchInput}
-                  onChange={(event) =>
-                    setBatchInput(event.target.value.replace(/\D/g, ""))
-                  }
+                  onChange={(event) => setBatchInput(sanitizeLookup(event.target.value))}
                   onFocus={(event) => {
-                    if (useAppKeypad) event.currentTarget.blur();
+                    if (useAppKeypad && !letterKeys) event.currentTarget.blur();
                   }}
-                  placeholder="######"
+                  placeholder={letterKeys ? "LG151727" : "######"}
                 />
+                <button
+                  type="button"
+                  className="ghost-btn keypad-switch"
+                  onClick={() => (letterKeys ? useNumberPad() : useLetterKeyboard())}
+                >
+                  {letterKeys ? "Use number pad" : "Need letters"}
+                </button>
                 <button
                   type="button"
                   className="ghost-btn scan-btn"
@@ -499,7 +524,7 @@ export default function Home() {
                 >
                   Scan batch sheet
                 </button>
-                {useAppKeypad ? (
+                {useAppKeypad && !letterKeys ? (
                   <div className="number-pad" aria-label="Number pad">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
                       <button
@@ -582,12 +607,14 @@ export default function Home() {
       {tab === "bagging" ? (
         <BaggingView
           batchNumber={data.batch.batchNumber}
+          kind={data.batch.kind}
           bagging={data.bagging}
           onNewBatch={requestNewBatch}
         />
       ) : tab === "filling" ? (
         <FillingView
           batchNumber={data.batch.batchNumber}
+          kind={data.batch.kind}
           filling={data.filling}
           onNewBatch={requestNewBatch}
         />
@@ -602,7 +629,7 @@ export default function Home() {
                 Reset
               </button>
             </div>
-            <h1>Batch #{data.batch.batchNumber}</h1>
+            <h1>{headingFor(data.batch.kind, data.batch.batchNumber)}</h1>
             <p className="progress-copy">
               {pickedCount} of {totalCount} items picked
               {missingCount ? ` · ${missingCount} missing` : ""}
